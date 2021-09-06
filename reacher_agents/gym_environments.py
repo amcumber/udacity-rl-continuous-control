@@ -1,45 +1,12 @@
-import numpy as np
-import random
-from collections import namedtuple, deque
-from abc import ABC, abstractmethod
-
+from __future__ import annotations
 import gym
-
-class EnvironmentNotLoadedError(Exception):
-    pass
-
-class EnvironmentResetError(Exception):
-    pass
+from .environments import EnvironmentMgr, EnvironmentNotLoadedError
 
 
-class EnvironmentMgr(ABC):
-    @abstractmethod
-    def __enter__(self):
-        pass
-    
-    @abstractmethod
-    def __exit__(self, e_type, e_value, e_traceback):
-        pass
-    
-    @abstractmethod
-    def step(self, action)-> '(next_state, reward, done, env_info)':
-        pass
-    
-    @abstractmethod
-    def reset(self) -> 'state':
-        pass
-    
-    @abstractmethod
-    def start(self):
-        pass
-    
-    @abstractmethod
-    def get_env(stream):
-        pass
-    
-
+# Classes
 class GymEnvironmentMgr(EnvironmentMgr):
     def __init__(self, scenario, seed=42):
+        """Initialize an environment manager with a given gym scenario"""
         self.scenario = scenario
         self.seed = seed
         
@@ -51,17 +18,22 @@ class GymEnvironmentMgr(EnvironmentMgr):
         return self.start()
     
     def __exit__(self, e_type, e_value, e_traceback):
-        pass
-    
-    def step(self, action)-> '(next_state, reward, done, env_info)':
+        self.env.close()
+
+    def step(self, action)-> tuple['next_state', 'reward', 'done', 'env_info']:
+        """Take a step within the given environment"""
         return self.env.step(action)
     
     def reset(self) -> 'state':
+        """Reset the state of the environment"""
         if self.env is None:
-            raise EnvironmentNotLoadedError('Environment Not Initialized, run start method')
+            raise EnvironmentNotLoadedError(
+                'Environment Not Initialized, run start method'
+            )
         return self.env.reset()
     
     def start(self):
+        """Start the loaded environment"""
         if self.env is None:
             self.env = self.get_env(self.scenario)
             self.env.seed(self.seed)
