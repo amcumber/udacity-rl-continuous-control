@@ -8,6 +8,9 @@ import gym
 class EnvironmentNotLoadedError(Exception):
     pass
 
+class EnvironmentResetError(Exception):
+    pass
+
 
 class EnvironmentMgr(ABC):
     @abstractmethod
