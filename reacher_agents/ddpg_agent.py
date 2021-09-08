@@ -3,207 +3,48 @@
 ## DDPG CITATION: T Lillicrap, et al. Continuous Control with Deep Reinforement
 #                 Learning. arXiv, 5 Jul 20019, 1509.02971v6
 #                 (https://arxiv.org/pdf/1509.02971.pdf)
-import numpy as np
-import random
-
-import torch
-import torch.nn.functional as F
-import torch.optim as optim
-
-from .agents import Agent
-from .replay_buffers import ReplayBuffer
-from .qnetworks import QNetwork
-
-class DDPGAgent(Agent):
-    """
-    Deep Q-Learning Agent. Interacts with and learns from the environment.
-    
-    Parameters
-    ----------
-    state_size : int
-        dimension of each state
-    action_size : int
-        dimension of each action
-    
-    Optional Parameters
-    ===================
-    device : str
-        'cpu' | 'cuda:0'
-    seed : int
-        random seed
-    lr : float
-        learning rate
-    update_every : int
-        Update Q-table after number of times
-    tau : float
-        interpolation parameter - from Q-Network
-    gamma : float
-        discount for future reward
-    batch_size : int
-        number of instances to include within a batch
-    buffer_size : int
-        tbr
-    """
-    def __init__(
-        self,
-        state_size: int,
-        action_size: int,
-        device: str = 'cpu',
-        seed_state: int = 42,
-        lr: float = 5e-4,
-        update_every: int = 4,
-        tau: float = 1e-3,
-        gamma: float = 0.99,
-        batch_size: int = 64,
-        buffer_size=int(1e5),
-    ):
-        self.state_size = state_size
-        self.action_size = action_size
-        self.device = device
-        self.seed_state = seed_state
-        self.lr = lr
-        self.update_every = update_every
-        self.tau = tau
-        self.gamma = gamma
-        self.batch_size = batch_size
-        self.buffer_size = buffer_size
-        
-        self.seed = random.seed(self.seed_state)
-        
-        # Q-Network
-        self.qnetwork_local = QNetwork(self.state_size, self.action_size, self.seed_state).to(self.device)
-        self.qnetwork_target = QNetwork(self.state_size, self.action_size, self.seed_state).to(self.device)
-        self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=self.lr)
-
-        # Replay memory
-        self.memory = ReplayBuffer(self.action_size, self.buffer_size, self.batch_size, self.seed_state, self.device)
-        # Initialize time step (for updating every self.update_every steps)
-        self.t_step = 0
-    
-    def step(self, state, action, reward, next_state, done):
-        """Advance Agent"""
-        # Save experience in replay memory
-        self.memory.add(state, action, reward, next_state, done)
-        
-        # Learn every UPDATE_EVERY time steps.
-        self.t_step = (self.t_step + 1) % self.update_every
-        if self.t_step == 0:
-            # If enough samples are available in memory, get random subset and learn
-            if len(self.memory) > self.batch_size:
-                experiences = self.memory.sample()
-                self.learn(experiences, self.gamma)
-
-    def act(self, state, eps=0.):
-        """Returns actions for given state as per current policy.
-        
-        Params
-        ======
-        state (array_like): current state
-        eps (float): epsilon, for epsilon-greedy action selection
-        """
-        state = torch.from_numpy(state).float().unsqueeze(0).to(self.device)
-        self.qnetwork_local.eval()
-        with torch.no_grad():
-            action_values = self.qnetwork_local(state)
-        self.qnetwork_local.train()
-
-        # Epsilon-greedy action selection
-        if random.random() > eps:
-            return np.argmax(action_values.cpu().data.numpy())
-        else:
-            return random.choice(np.arange(self.action_size))
-
-    def learn(self, experiences, gamma):
-        """Update value parameters using given batch of experience tuples.
-
-        Params
-        ======
-        experiences (Tuple[torch.Variable]): tuple of (s, a, r, s', done) tuples 
-        # experiences (Tuple[np.array]): tuple of (s, a, r, s', done) tuples 
-        gamma (float): discount factor
-        """
-        states, actions, rewards, next_states, dones = experiences
-
-        # Get max predicted Q values (for next states) from target model
-        Q_targets_next = self.qnetwork_target(next_states).detach().max(1)[0].unsqueeze(1)
-        # Compute Q targets for current states 
-        Q_targets = rewards + (gamma * Q_targets_next * (1 - dones))
-
-        # Get expected Q values from local model
-        Q_expected = self.qnetwork_local(states).gather(1, actions)
-
-        # Compute loss
-        loss = F.mse_loss(Q_expected, Q_targets)
-        # Minimize the loss
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-
-        # ------------------- update target network ------------------- #
-        self.soft_update(self.qnetwork_local, self.qnetwork_target, self.tau)                     
-
-    def soft_update(self, local_model, target_model, tau):
-        """Soft update model parameters.
-        θ_target = τ*θ_local + (1 - τ)*θ_target
-
-        Params
-        ======
-            local_model (PyTorch model): weights will be copied from
-            target_model (PyTorch model): weights will be copied to
-            tau (float): interpolation parameter 
-        """
-        for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
-            target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
-            
-    def save(self, file):
-        """Save Q-Network"""
-        torch.save(self.qnetwork_local.state_dict(), file)
-            
-    def load(self, file):
-        """Load Q-Network"""
-        self.qnetwork_local.load_state_dict(torch.load(file))
-        self.qnetwork_target.load_state_dict(torch.load(file))
-
-## From DDPG Bipedal exersize from Udacity's Deep Reinforement Learning Course
-import numpy as np
-import random
+## CITATION: From DDPG Bipedal exersize from Udacity's Deep Reinforement
+#            Learning Course
 import copy
-from collections import namedtuple, deque
+import random
+from typing import Tuple
 
+import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-from .model import DDPGActor, DDPGCritic
+from .agents import Agent, MultiAgent
+from .ddpg_model import DDPGActor, DDPGCritic
+from .replay_buffers import ReplayBuffer
+from .noise_model import Noise, OUNoise
 
-def main():
-    BUFFER_SIZE = int(1e6)  # replay buffer size
-    BATCH_SIZE = 128        # minibatch size
-    GAMMA = 0.99            # discount factor
-    TAU = 1e-3              # for soft update of target parameters
-    LR_ACTOR = 1e-4         # learning rate of the actor 
-    LR_CRITIC = 3e-4        # learning rate of the critic
-    WEIGHT_DECAY = 0.0001   # L2 weight decay
-
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class DDPGAgent(Agent):
     """Interacts with and learns from the environment."""
+
     def __init__(
         self,
         state_size: int,
         action_size: int,
-        random_seed: int,
+        device: str = "cpu",
+        random_seed: int = 42,
         buffer_size: int = int(1e6),
         batch_size: int = 128,
         gamma: float = 0.99,
         tau: float = 1e-3,
         lr_actor: float = 1e-4,
         lr_critic: float = 3e-4,
+        update_every: int = 20,
+        learn_every: int = 1,
         weight_decay: float = 0.0001,
+        actor: nn.Module = DDPGActor,
+        critic: nn.Module = DDPGCritic,
+        noise: Noise = OUNoise,
     ):
         """Initialize an Agent object.
-        
+
         Parameters
         ----------
         state_size : int
@@ -212,6 +53,7 @@ class DDPGAgent(Agent):
             dimension of each action
         random_seed : int
             random seed
+
         Optional Parameters
         -------------------
         buffer_size : int (int(1e6))
@@ -223,59 +65,81 @@ class DDPGAgent(Agent):
         tau : float (1e-3)
             for soft update of target parameters
         lr_actor : float (1e-4)
-            learning rate of the actor 
+            learning rate of the actor
         lr_critic : float (3e-4)
             learning rate of the critic
+        update_every : int (20)
+            update target networks at specified iteration
+        learn_every : int (1)
+            update local networks at specified iteration
         weight_decay : float (0.0001)
             L2 weight decay
+        actor : torch.nn.Module (DDPGActor)
+            Actor Network to use for DDPG
+        critic : torch.nn.Module (DDPGCritic)
+            Critic Network to use for DDPG
+        noise : Noise (OUNoise)
+            Noise Model to use for normalizing the A/C Network
         """
 
-        self.buffer_size = buffer_size 
-        self.batch_size = batch_size 
-        self.gamma = gamma 
-        self.tau = tau 
-        self.lr_actor = lr_actor 
-        self.lr_critic = lr_critic 
-        self.weight_decay = weight_decay 
+        self.buffer_size = buffer_size
+        self.batch_size = batch_size
+        self.gamma = gamma
+        self.tau = tau
+        self.lr_actor = lr_actor
+        self.lr_critic = lr_critic
+
+        self.update_every = update_every
+        self.learn_every = learn_every
+
+        self.weight_decay = weight_decay
 
         self.state_size = state_size
         self.action_size = action_size
         self.seed = random.seed(random_seed)
+        self.device = torch.device(device)
 
         # Actor Network (w/ Target Network)
-        self.actor_local = DDPGActor(
-            state_size, action_size, random_seed
-        ).to(device)
-        self.actor_target = DDPGActor(state_size, action_size, random_seed).to(device)
+        self.n_workers = 1
+        self.actor_local = actor(state_size, action_size, random_seed).to(device)
+        self.actor_target = actor(state_size, action_size, random_seed).to(device)
         self.actor_optimizer = optim.Adam(self.actor_local.parameters(), lr=lr_actor)
 
         # Critic Network (w/ Target Network)
-        self.critic_local = DDPGCritic(state_size, action_size, random_seed).to(device)
-        self.critic_target = DDPGCritic(state_size, action_size, random_seed).to(device)
-        self.critic_optimizer = optim.Adam(self.critic_local.parameters(), lr=lr_critic, weight_decay=weight_decay)
+        self.critic_local = critic(state_size, action_size, random_seed).to(device)
+        self.critic_target = critic(state_size, action_size, random_seed).to(device)
+        self.critic_optimizer = optim.Adam(
+            self.critic_local.parameters(), lr=lr_critic, weight_decay=weight_decay
+        )
 
         # Noise process
-        self.noise = OUNoise(action_size, random_seed)
+        self.noise = noise(action_size, random_seed)
 
         # Replay memory
         self.memory = ReplayBuffer(action_size, buffer_size, batch_size, random_seed)
-    
+
+        # init Step Counter
+        self.i_step = 0
+
     def step(self, state, action, reward, next_state, done):
-        """Save experience in replay memory, and use random sample from buffer to learn."""
+        """
+        Save experience in replay memory, and use random sample from buffer to
+        learn.
+        """
         # Save experience / reward
         self.memory.add(state, action, reward, next_state, done)
 
         # Learn, if enough samples are available in memory
-        if len(self.memory) > BATCH_SIZE:
+        if len(self.memory) > self.batch_size:
             experiences = self.memory.sample()
-            self.learn(experiences, GAMMA)
+            self.learn(experiences)
 
     def act(self, state, add_noise=True):
         """Returns actions for given state as per current policy."""
-        state = torch.from_numpy(state).float().to(device)
+        state = torch.from_numpy(state).float().to(self.device)
         self.actor_local.eval()
         with torch.no_grad():
-            action = self.actor_local(state).cpu().data.numpy()
+            action = self.actor_local(state).to(self.device).data.numpy()
         self.actor_local.train()
         if add_noise:
             action += self.noise.sample()
@@ -284,26 +148,48 @@ class DDPGAgent(Agent):
     def reset(self):
         self.noise.reset()
 
-    def learn(self, experiences, gamma):
-        """Update policy and value parameters using given batch of experience tuples.
+    def learn(self, experiences: Tuple[torch.tensor]):
+        """
+        Update policy and value parameters using given batch of experience
+        tuples.
+
         Q_targets = r + γ * critic_target(next_state, actor_target(next_state))
         where:
             actor_target(state) -> action
             critic_target(state, action) -> Q-value
 
-        Params
-        ======
-            experiences (Tuple[torch.Tensor]): tuple of (s, a, r, s', done) tuples 
-            gamma (float): discount factor
-        """
-        states, actions, rewards, next_states, dones = experiences
+        Parameters
+        ----------
+        experiences : Tuple[torch.Tensor]
+            tuple of (s, a, r, s', done) tuples
 
-        # ---------------------------- update critic ---------------------------- #
+        CITATION: the alogrithm for implemeting the learn_every // update_every 
+                  was derived from recommendations for the continuous control
+                  project as well as reviewing recommendations on the Mentor
+                  help forums - Udacity's Deep Reinforement Learning Course
+        """
+        self.i_step += 1
+
+        # ----------------------- update local networks ---------------------- #
+        if self.i_step % self.learn_every == 0:
+            states, *_ = experiences
+            self._update_local_critic(experiences)
+            self._update_local_actor(states)
+
+        # ----------------------- update target networks --------------------- #
+        if self.i_step % self.update_every == 0:
+            self._soft_update(self.critic_local, self.critic_target)
+            self._soft_update(self.actor_local, self.actor_target)
+
+    def _update_local_critic(self, experiences):
+        """Updates local critic given experiences"""
+        # ---------------------------- update critic ------------------------- #
         # Get predicted next-state actions and Q values from target models
+        states, actions, rewards, next_states, dones = experiences
         actions_next = self.actor_target(next_states)
         Q_targets_next = self.critic_target(next_states, actions_next)
         # Compute Q targets for current states (y_i)
-        Q_targets = rewards + (gamma * Q_targets_next * (1 - dones))
+        Q_targets = rewards + (self.gamma * Q_targets_next * (1 - dones))
         # Compute critic loss
         Q_expected = self.critic_local(states, actions)
         critic_loss = F.mse_loss(Q_expected, Q_targets)
@@ -312,7 +198,9 @@ class DDPGAgent(Agent):
         critic_loss.backward()
         self.critic_optimizer.step()
 
-        # ---------------------------- update actor ---------------------------- #
+    def _update_local_actor(self, states):
+        """Updates local actor given states"""
+        # ---------------------------- update actor -------------------------- #
         # Compute actor loss
         actions_pred = self.actor_local(states)
         actor_loss = -self.critic_local(states, actions_pred).mean()
@@ -321,11 +209,7 @@ class DDPGAgent(Agent):
         actor_loss.backward()
         self.actor_optimizer.step()
 
-        # ----------------------- update target networks ----------------------- #
-        self.soft_update(self.critic_local, self.critic_target, TAU)
-        self.soft_update(self.actor_local, self.actor_target, TAU)                     
-
-    def soft_update(self, local_model, target_model, tau):
+    def _soft_update(self, local_model, target_model):
         """Soft update model parameters.
         θ_target = τ*θ_local + (1 - τ)*θ_target
 
@@ -333,66 +217,41 @@ class DDPGAgent(Agent):
         ======
             local_model: PyTorch model (weights will be copied from)
             target_model: PyTorch model (weights will be copied to)
-            tau (float): interpolation parameter 
         """
-        for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
-            target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
+        for target_param, local_param in zip(
+            target_model.parameters(), local_model.parameters()
+        ):
+            target_param.data.copy_(
+                (self.tau * local_param.data) + (1.0 - self.tau) * target_param.data
+            )
 
-class OUNoise:
-    """Ornstein-Uhlenbeck process."""
-
-    def __init__(self, size, seed, mu=0., theta=0.15, sigma=0.2):
-        """Initialize parameters and noise process."""
-        self.mu = mu * np.ones(size)
-        self.theta = theta
-        self.sigma = sigma
-        self.seed = random.seed(seed)
-        self.reset()
-
-    def reset(self):
-        """Reset the internal state (= noise) to mean (mu)."""
-        self.state = copy.copy(self.mu)
-
-    def sample(self):
-        """Update internal state and return it as a noise sample."""
-        x = self.state
-        dx = self.theta * (self.mu - x) + self.sigma * np.array([random.random() for i in range(len(x))])
-        self.state = x + dx
-        return self.state
-
-class ReplayBuffer:
-    """Fixed-size buffer to store experience tuples."""
-
-    def __init__(self, action_size, buffer_size, batch_size, seed):
-        """Initialize a ReplayBuffer object.
-        Params
-        ======
-            buffer_size (int): maximum size of buffer
-            batch_size (int): size of each training batch
+    def save(self, root_filename: str = "checkpoint") -> None:
         """
-        self.action_size = action_size
-        self.memory = deque(maxlen=buffer_size)  # internal memory (deque)
-        self.batch_size = batch_size
-        self.experience = namedtuple("Experience", field_names=["state", "action", "reward", "next_state", "done"])
-        self.seed = random.seed(seed)
-    
-    def add(self, state, action, reward, next_state, done):
-        """Add a new experience to memory."""
-        e = self.experience(state, action, reward, next_state, done)
-        self.memory.append(e)
-    
-    def sample(self):
-        """Randomly sample a batch of experiences from memory."""
-        experiences = random.sample(self.memory, k=self.batch_size)
+        Save Actor|Critic Models
 
-        states = torch.from_numpy(np.vstack([e.state for e in experiences if e is not None])).float().to(device)
-        actions = torch.from_numpy(np.vstack([e.action for e in experiences if e is not None])).float().to(device)
-        rewards = torch.from_numpy(np.vstack([e.reward for e in experiences if e is not None])).float().to(device)
-        next_states = torch.from_numpy(np.vstack([e.next_state for e in experiences if e is not None])).float().to(device)
-        dones = torch.from_numpy(np.vstack([e.done for e in experiences if e is not None]).astype(np.uint8)).float().to(device)
+        Parameters
+        ----------
+        root_filename : str
+            root of file to save. For example, "checkpoint" will save the actor
+            file as "checkpoint_actor.pth" and the critic file as
+            "checkpoint_critic.pth
+        """
+        actor_file = root_filename + "_actor.pth"
+        critic_file = root_filename + "_critic.pth"
+        torch.save(self.actor_local.state_dict(), actor_file)
+        torch.save(self.critic_local.state_dict(), critic_file)
 
-        return (states, actions, rewards, next_states, dones)
+    def load(self, actor_file, critic_file) -> None:
+        """Load Actor and Critic Files"""
+        self.actor_local.load_state_dict(torch.load(actor_file))
+        self.actor_target.load_state_dict(torch.load(actor_file))
 
-    def __len__(self):
-        """Return the current size of internal memory."""
-        return len(self.memory)
+        self.critic_local.load_state_dict(torch.load(critic_file))
+        self.critic_target.load_state_dict(torch.load(critic_file))
+
+    def __len__(self) -> int:
+        return self.n_workers
+
+
+class DDPGMultiAgentAgent(MultiAgent):
+    ...

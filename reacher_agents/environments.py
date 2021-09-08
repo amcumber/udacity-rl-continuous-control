@@ -1,12 +1,12 @@
-from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum, auto
-import gym
+from typing import Tuple
 
 
 # Errors
 class EnvironmentNotLoadedError(Exception):
     pass
+
 
 class EnvironmentResetError(Exception):
     pass
@@ -18,28 +18,29 @@ class EnvEnum(Enum):
     active = auto()
     dead = auto()
 
+
 # Abstract Classes
 class EnvironmentMgr(ABC):
     @abstractmethod
     def __enter__(self):
         pass
-    
+
     @abstractmethod
     def __exit__(self, e_type, e_value, e_traceback):
         pass
-    
+
     @abstractmethod
-    def step(self, action)-> tuple['next_state', 'reward', 'done', 'env_info']:
+    def step(self, action) -> Tuple["next_state", "reward", "done", "env_info"]:
         pass
-    
+
     @abstractmethod
-    def reset(self) -> 'state':
+    def reset(self) -> "state":
         pass
-    
+
     @abstractmethod
     def start(self):
         pass
-    
+
     @abstractmethod
     def get_env(self, stream):
         pass
