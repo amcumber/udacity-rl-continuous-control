@@ -9,7 +9,7 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 
-from .agents import Agent, MultiAgent
+from .agents import Agent
 from .environments import EnvironmentMgr
 
 
@@ -26,12 +26,14 @@ class Trainer(ABC):
 class MultiAgentTrainer(Trainer):
     def __init__(
         self,
-        agents: MultiAgent,
+        agent: Agent,
         env: EnvironmentMgr,
-        n_episodes: int = 2000,
-        max_t: int = 10000,
+        n_episodes: int = 3000,
+        max_t: int = 500,
         window_len: int = 100,
         solved: float = 30.0,
+        n_workers: int = 1,
+        max_samples: int = 10,
         save_root: str = "checkpoint",
     ):
         """
@@ -56,10 +58,18 @@ class MultiAgentTrainer(Trainer):
             update terminal with information for every specified iteration,
         solved : float
             score to be considered solved
+        workers: int (1)
+            number of workers (1, 20)
+        max_sample: int (10)
+            max number of workers to sample for multi agent training
         save_file: str
             file to save network weights
+        CITATION: the alogrithm for implemeting the learn_every // update_every
+                  was derived from recommendations for the continuous control
+                  project as well as reviewing recommendations on the Mentor
+                  help forums - Udacity's Deep Reinforement Learning Course
         """
-        self.agents = agents
+        self.agent = agent
         self.env = env
         self.n_episodes = n_episodes
         self.max_t = max_t
@@ -68,7 +78,8 @@ class MultiAgentTrainer(Trainer):
         self.window_len = window_len
 
         self.all_scores_ = None
-        self.n_workers = len(self.agents)
+        self.n_workers = n_workers
+        self.max_samples = max_samples
         self.root = save_root
 
     def _report_score(self, i_episode, scores_window, end="") -> None:
@@ -91,24 +102,6 @@ class MultiAgentTrainer(Trainer):
         now = datetime.now()
         return f'{root}-{now.strftime("%Y%m%dT%H%M%S")}'
 
-    def _run_episode(
-        self, all_scores, scores_window, max_t, train_mode=True
-    ) -> Tuple[list, deque, float]:
-        """Run an episode of the training sequence"""
-        states = self.env.reset(train_mode=train_mode)
-        new_scores = np.zeros(self.n_workers)
-        for _ in range(max_t):
-            actions = self.agents.act(states)
-            next_states, rewards, dones, _ = self.env.step(actions)
-            self.agents.step(states, actions, rewards, next_states, dones)
-            states = next_states
-            new_scores += rewards
-            if np.any(dones):
-                break
-        scores_window.append(new_scores)  # save most recent score
-        all_scores.append(new_scores)  # save most recent score
-        return (all_scores, scores_window)
-
     def train(self):
         self.env.start()
         all_scores = []  # list containing scores from each episode
@@ -121,11 +114,49 @@ class MultiAgentTrainer(Trainer):
             self._report_score(i_episode, scores_window)
             if (i_episode + 1) % self.window_len == 0:
                 self._report_score(i_episode, scores_window, end="\n")
-                self.agents.save(f"{self.root}-checkpoint")
+                self.agent.save(f"{self.root}-checkpoint")
             if self._check_solved(i_episode, scores_window):
-                self.agents.save(self._get_save_file(f"{self.root}-solved"))
+                self.agent.save(self._get_save_file(f"{self.root}-solved"))
                 break
         return all_scores
+
+    def _run_episode(
+        self, all_scores, scores_window, max_t, train_mode=True
+    ) -> Tuple[list, deque, float]:
+        """Run an episode of the training sequence"""
+        states = self.env.reset(train_mode=train_mode)
+        self.agent.reset()
+        new_scores = np.zeros(self.n_workers)
+        for _ in range(max_t):
+            actions = self.agent.act(states)
+            next_states, rewards, dones, _ = self.env.step(actions)
+            self._step_agents(states, actions, rewards, next_states, dones)
+            states = next_states
+            new_scores += rewards
+            if np.any(dones):
+                break
+        scores_window.append(new_scores)  # save most recent score
+        all_scores.append(new_scores)  # save most recent score
+        return (all_scores, scores_window)
+
+    def _step_agents(self, states, actions, rewards, next_states, dones):
+        """
+        Step Agents depending on number of workers
+
+        CITATION: the alogrithm for implemeting the learn_every // update_every
+                  was derived from recommendations for the continuous control
+                  project as well as reviewing recommendations on the Mentor
+                  help forums - Udacity's Deep Reinforement Learning Course
+        """
+        samples = np.min([self.max_samples, self.n_workers])
+        for idx in random.sample(range(self.n_workers), samples):
+            self.agent.step(
+                states[idx],
+                actions[idx],
+                rewards[idx],
+                next_states[idx],
+                dones[idx],
+            )
 
     def eval(self, n_episodes=3, t_max=1000):
         ## scores_window

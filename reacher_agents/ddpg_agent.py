@@ -36,8 +36,8 @@ class DDPGAgent(Agent):
         tau: float = 1e-3,
         lr_actor: float = 1e-4,
         lr_critic: float = 3e-4,
-        update_every: int = 20,
-        learn_every: int = 1,
+        target_update_f: int = 10,
+        learn_f: int = 2,
         weight_decay: float = 0.0001,
         actor: nn.Module = DDPGActor,
         critic: nn.Module = DDPGCritic,
@@ -68,9 +68,9 @@ class DDPGAgent(Agent):
             learning rate of the actor
         lr_critic : float (3e-4)
             learning rate of the critic
-        update_every : int (20)
+        target_update_f : int (10)
             update target networks at specified iteration
-        learn_every : int (1)
+        learn_f : int (2)
             update local networks at specified iteration
         weight_decay : float (0.0001)
             L2 weight decay
@@ -89,8 +89,8 @@ class DDPGAgent(Agent):
         self.lr_actor = lr_actor
         self.lr_critic = lr_critic
 
-        self.update_every = update_every
-        self.learn_every = learn_every
+        self.target_f = target_update_f
+        self.learn_f = learn_f
 
         self.weight_decay = weight_decay
 
@@ -100,7 +100,6 @@ class DDPGAgent(Agent):
         self.device = torch.device(device)
 
         # Actor Network (w/ Target Network)
-        self.n_workers = 1
         self.actor_local = actor(state_size, action_size, random_seed).to(device)
         self.actor_target = actor(state_size, action_size, random_seed).to(device)
         self.actor_optimizer = optim.Adam(self.actor_local.parameters(), lr=lr_actor)
@@ -121,6 +120,20 @@ class DDPGAgent(Agent):
         # init Step Counter
         self.i_step = 0
 
+    def reset(self):
+        self.noise.reset()
+
+    def act(self, state, add_noise=True):
+        """Returns actions for given state as per current policy."""
+        state = torch.from_numpy(state).float().to(self.device)
+        self.actor_local.eval()
+        with torch.no_grad():
+            action = self.actor_local(state).cpu().data.numpy()
+        self.actor_local.train()
+        if add_noise:
+            action += self.noise.sample()
+        return np.clip(action, -1, 1)
+
     def step(self, state, action, reward, next_state, done):
         """
         Save experience in replay memory, and use random sample from buffer to
@@ -130,23 +143,12 @@ class DDPGAgent(Agent):
         self.memory.add(state, action, reward, next_state, done)
 
         # Learn, if enough samples are available in memory
-        if len(self.memory) > self.batch_size:
+        memory_filled = len(self.memory) > self.batch_size
+        self.i_step += 1
+        allowed_to_learn = self.i_step % self.learn_f == 0
+        if memory_filled and allowed_to_learn:
             experiences = self.memory.sample()
             self.learn(experiences)
-
-    def act(self, state, add_noise=True):
-        """Returns actions for given state as per current policy."""
-        state = torch.from_numpy(state).float().to(self.device)
-        self.actor_local.eval()
-        with torch.no_grad():
-            action = self.actor_local(state).to(self.device).data.numpy()
-        self.actor_local.train()
-        if add_noise:
-            action += self.noise.sample()
-        return np.clip(action, -1, 1)
-
-    def reset(self):
-        self.noise.reset()
 
     def learn(self, experiences: Tuple[torch.tensor]):
         """
@@ -163,44 +165,29 @@ class DDPGAgent(Agent):
         experiences : Tuple[torch.Tensor]
             tuple of (s, a, r, s', done) tuples
 
-        CITATION: the alogrithm for implemeting the learn_every // update_every 
+        CITATION: the alogrithm for implemeting the learn_every // update_every
                   was derived from recommendations for the continuous control
                   project as well as reviewing recommendations on the Mentor
                   help forums - Udacity's Deep Reinforement Learning Course
         """
-        self.i_step += 1
-
-        # ----------------------- update local networks ---------------------- #
-        if self.i_step % self.learn_every == 0:
-            states, *_ = experiences
-            self._update_local_critic(experiences)
-            self._update_local_actor(states)
-
-        # ----------------------- update target networks --------------------- #
-        if self.i_step % self.update_every == 0:
-            self._soft_update(self.critic_local, self.critic_target)
-            self._soft_update(self.actor_local, self.actor_target)
-
-    def _update_local_critic(self, experiences):
-        """Updates local critic given experiences"""
-        # ---------------------------- update critic ------------------------- #
-        # Get predicted next-state actions and Q values from target models
         states, actions, rewards, next_states, dones = experiences
+
+        # ------------------------ update critic ------------------------- #
+        # Get predicted next-state actions and Q values from target models
         actions_next = self.actor_target(next_states)
-        Q_targets_next = self.critic_target(next_states, actions_next)
+        q_targets_next = self.critic_target(next_states, actions_next)
         # Compute Q targets for current states (y_i)
-        Q_targets = rewards + (self.gamma * Q_targets_next * (1 - dones))
+        q_targets = rewards + (self.gamma * q_targets_next * (1 - dones))
         # Compute critic loss
-        Q_expected = self.critic_local(states, actions)
-        critic_loss = F.mse_loss(Q_expected, Q_targets)
+        q_expected = self.critic_local(states, actions)
+        critic_loss = F.mse_loss(q_expected, q_targets)
         # Minimize the loss
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.critic_local.parameters(), 1)
         self.critic_optimizer.step()
 
-    def _update_local_actor(self, states):
-        """Updates local actor given states"""
-        # ---------------------------- update actor -------------------------- #
+        # ------------------------ update actor -------------------------- #
         # Compute actor loss
         actions_pred = self.actor_local(states)
         actor_loss = -self.critic_local(states, actions_pred).mean()
@@ -208,6 +195,11 @@ class DDPGAgent(Agent):
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
         self.actor_optimizer.step()
+
+        # ------------------- update target networks --------------------- #
+        if self.i_step % self.target_f == 0:
+            self._soft_update(self.critic_local, self.critic_target)
+            self._soft_update(self.actor_local, self.actor_target)
 
     def _soft_update(self, local_model, target_model):
         """Soft update model parameters.
@@ -248,10 +240,3 @@ class DDPGAgent(Agent):
 
         self.critic_local.load_state_dict(torch.load(critic_file))
         self.critic_target.load_state_dict(torch.load(critic_file))
-
-    def __len__(self) -> int:
-        return self.n_workers
-
-
-class DDPGMultiAgentAgent(MultiAgent):
-    ...

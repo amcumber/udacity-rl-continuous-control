@@ -3,8 +3,12 @@ from typing import Tuple
 
 from unityagents import UnityEnvironment
 
-from .environments import (EnvEnum, EnvironmentMgr, EnvironmentNotLoadedError,
-                           EnvironmentResetError)
+from .environments import (
+    EnvEnum,
+    EnvironmentMgr,
+    EnvironmentNotLoadedError,
+    EnvironmentResetError,
+)
 
 
 def validate_unity_env(func):
@@ -12,7 +16,8 @@ def validate_unity_env(func):
 
     def wrapper(cls, *args, **kwargs):
         if cls.state == EnvEnum.dead:
-            raise EnvironmentResetError("Must Reset Kernel - due to bug in UnityAgents")
+            msg = "Must Reset Kernel - due to bug in UnityAgents"
+            raise EnvironmentResetError(msg)
         return func(cls, *args, **kwargs)
 
     return wrapper
@@ -51,7 +56,10 @@ class UnityEnvMgr(EnvironmentMgr):
         return states
 
     @validate_unity_env
-    def step(self, actions) -> Tuple["next_state", "reward", "done", "env_info"]:
+    def step(
+        self,
+        actions,
+    ) -> Tuple["next_state", "reward", "done", "env_info"]:
         """Advance the state of the environment given actions."""
         env_info = self.env.step(actions)[self.brain_name]
         next_states = env_info.vector_observations
@@ -87,7 +95,8 @@ class UnityEnvMgr(EnvironmentMgr):
     def close(self) -> None:
         """Close the environment"""
         self.env.close()
-        raise EnvironmentResetError("Must Reset Kernel - due to bug in UnityAgents")
+        msg = "Must Reset Kernel - due to bug in UnityAgents"
+        raise EnvironmentResetError(msg)
 
 
 class UnityEnvSingleAgentMgr(UnityEnvMgr):

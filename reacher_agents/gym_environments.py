@@ -1,5 +1,4 @@
-from __future__ import annotations
-
+from typing import Tuple
 import gym
 
 from .environments import EnvironmentMgr, EnvironmentNotLoadedError
@@ -22,7 +21,7 @@ class GymEnvironmentMgr(EnvironmentMgr):
     def __exit__(self, e_type, e_value, e_traceback):
         self.env.close()
 
-    def step(self, action) -> tuple["next_state", "reward", "done", "env_info"]:
+    def step(self, action) -> Tuple["next_state", "reward", "done", "env_info"]:
         """Take a step within the given environment"""
         return self.env.step(action)
 
@@ -46,3 +45,6 @@ class GymEnvironmentMgr(EnvironmentMgr):
     @staticmethod
     def get_env(scenario):
         return gym.make(scenario)
+
+    def close(self):
+        self.env.close()
