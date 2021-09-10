@@ -121,10 +121,10 @@ class MultiAgentTrainer(Trainer):
         return all_scores
 
     def _run_episode(
-        self, all_scores, scores_window, max_t, train_mode=True
+        self, all_scores, scores_window, max_t
     ) -> Tuple[list, deque, float]:
         """Run an episode of the training sequence"""
-        states = self.env.reset(train_mode=train_mode)
+        states = self.env.reset()
         self.agent.reset()
         new_scores = np.zeros(self.n_workers)
         for _ in range(max_t):
@@ -164,8 +164,50 @@ class MultiAgentTrainer(Trainer):
         scores_window = deque(maxlen=self.window_len)
         for i in range(n_episodes):
             (all_scores, scores_window) = self._run_episode(
-                all_scores, scores_window, t_max, train_mode=False
+                all_scores, scores_window, t_max
             )
             self.all_scores_ = all_scores
             print(f"\rEpisode {i+1}\tFinal Score {np.mean(all_scores):.2f}", end="")
         return all_scores
+
+
+class SingleAgentTrainer(MultiAgentTrainer):
+    def __init__(
+        self,
+        agent: Agent,
+        env: EnvironmentMgr,
+        n_episodes: int = 3000,
+        max_t: int = 500,
+        window_len: int = 100,
+        solved: float = 30.0,
+        max_samples: int = 10,
+        save_root: str = "checkpoint",
+        n_workers: int = None
+    ):
+        super().__init__(
+            agent=agent,
+            env=env,
+            n_episodes=n_episodes,
+            max_t=max_t,
+            window_len=window_len,
+            solved=solved,
+            max_samples=None,
+            save_root=save_root,
+            n_workers=1
+        )
+    def _step_agents(self, states, actions, rewards, next_states, dones):
+        """
+        Step Agents depending on number of workers
+
+        CITATION: the alogrithm for implemeting the learn_every // update_every
+                  was derived from recommendations for the continuous control
+                  project as well as reviewing recommendations on the Mentor
+                  help forums - Udacity's Deep Reinforement Learning Course
+        """
+        self.agent.step(
+            states,
+            actions,
+            rewards,
+            next_states,
+            dones,
+        )

@@ -33,15 +33,16 @@ class DDPGAgent(Agent):
         buffer_size: int = int(1e6),
         batch_size: int = 128,
         gamma: float = 0.99,
-        tau: float = 1e-3,
-        lr_actor: float = 1e-4,
-        lr_critic: float = 3e-4,
+        tau: float = 0.05,# 1e-3,
+        lr_actor: float = 0.001,
+        lr_critic: float = 0.002,
         target_update_f: int = 10,
-        learn_f: int = 2,
-        weight_decay: float = 0.0001,
+        learn_f: int = 10,
+        weight_decay: float = 0,  # 0.0001,
         actor: nn.Module = DDPGActor,
         critic: nn.Module = DDPGCritic,
         noise: Noise = OUNoise,
+        upper_bound: int = 1,
     ):
         """Initialize an Agent object.
 
@@ -80,6 +81,9 @@ class DDPGAgent(Agent):
             Critic Network to use for DDPG
         noise : Noise (OUNoise)
             Noise Model to use for normalizing the A/C Network
+        upper_bound : int (1)
+            bounding box for action upper_bound is set to value and lower_bound
+            is set to value
         """
 
         self.buffer_size = buffer_size
@@ -99,23 +103,50 @@ class DDPGAgent(Agent):
         self.seed = random.seed(random_seed)
         self.device = torch.device(device)
 
+        self.upper_bound = upper_bound
+
         # Actor Network (w/ Target Network)
-        self.actor_local = actor(state_size, action_size, random_seed).to(device)
-        self.actor_target = actor(state_size, action_size, random_seed).to(device)
+        self.actor_local = actor(
+            state_size,
+            action_size,
+            random_seed,
+            upper_bound,
+        ).to(device)
+        self.actor_target = actor(
+            state_size,
+            action_size,
+            random_seed,
+            upper_bound,
+        ).to(device)
         self.actor_optimizer = optim.Adam(self.actor_local.parameters(), lr=lr_actor)
 
         # Critic Network (w/ Target Network)
-        self.critic_local = critic(state_size, action_size, random_seed).to(device)
-        self.critic_target = critic(state_size, action_size, random_seed).to(device)
+        self.critic_local = critic(
+            state_size,
+            action_size,
+            random_seed,
+        ).to(device)
+        self.critic_target = critic(
+            state_size,
+            action_size,
+            random_seed,
+        ).to(device)
         self.critic_optimizer = optim.Adam(
-            self.critic_local.parameters(), lr=lr_critic, weight_decay=weight_decay
+            self.critic_local.parameters(),
+            lr=lr_critic,
+            weight_decay=weight_decay,
         )
 
         # Noise process
         self.noise = noise(action_size, random_seed)
 
         # Replay memory
-        self.memory = ReplayBuffer(action_size, buffer_size, batch_size, random_seed)
+        self.memory = ReplayBuffer(
+            action_size,
+            buffer_size,
+            batch_size,
+            random_seed,
+        )
 
         # init Step Counter
         self.i_step = 0
@@ -132,7 +163,7 @@ class DDPGAgent(Agent):
         self.actor_local.train()
         if add_noise:
             action += self.noise.sample()
-        return np.clip(action, -1, 1)
+        return np.clip(action, -self.upper_bound, self.upper_bound)
 
     def step(self, state, action, reward, next_state, done):
         """
@@ -174,12 +205,12 @@ class DDPGAgent(Agent):
 
         # ------------------------ update critic ------------------------- #
         # Get predicted next-state actions and Q values from target models
-        actions_next = self.actor_target(next_states)
-        q_targets_next = self.critic_target(next_states, actions_next)
+        actions_next = self.actor_target.forward(next_states)
+        q_targets_next = self.critic_target.forward(next_states, actions_next)
         # Compute Q targets for current states (y_i)
         q_targets = rewards + (self.gamma * q_targets_next * (1 - dones))
         # Compute critic loss
-        q_expected = self.critic_local(states, actions)
+        q_expected = self.critic_local.forward(states, actions)
         critic_loss = F.mse_loss(q_expected, q_targets)
         # Minimize the loss
         self.critic_optimizer.zero_grad()
@@ -189,8 +220,8 @@ class DDPGAgent(Agent):
 
         # ------------------------ update actor -------------------------- #
         # Compute actor loss
-        actions_pred = self.actor_local(states)
-        actor_loss = -self.critic_local(states, actions_pred).mean()
+        actions_pred = self.actor_local.forward(states)
+        actor_loss = -self.critic_local.forward(states, actions_pred).mean()
         # Minimize the loss
         self.actor_optimizer.zero_grad()
         actor_loss.backward()

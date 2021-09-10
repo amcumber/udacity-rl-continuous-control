@@ -99,22 +99,22 @@ class UnityEnvMgr(EnvironmentMgr):
         raise EnvironmentResetError(msg)
 
 
-class UnityEnvSingleAgentMgr(UnityEnvMgr):
-    """Unity Manager for a single agent."""
+# class UnityEnvSingleAgentMgr(UnityEnvMgr):
+#     """Unity Manager for a single agent."""
 
-    def reset(self) -> "state":
-        states = super().reset()
-        return states[0]
+#     def reset(self) -> "state":
+#         states = super().reset()
+#         return states[0]
 
-    def step(self, action) -> Tuple["next_state", "reward", "done", "env_info"]:
-        next_states, rewards, dones, env_info = super().step([action])
-        next_state = next_states[0]
-        reward = rewards[0]
-        done = dones[0]
-        return (next_state, reward, done, env_info)
+#     def step(self, action) -> Tuple["next_state", "reward", "done", "env_info"]:
+#         next_states, rewards, dones, env_info = super().step([action])
+#         next_state = next_states[0]
+#         reward = rewards[0]
+#         done = dones[0]
+#         return (next_state, reward, done, env_info)
 
-    def start(self) -> UnityEnvironment:
-        states = super().start()
-        self.n_agents = 1
-        self.state_size = len(states[0])
-        return self.env
+#     def start(self) -> UnityEnvironment:
+#         states = super().start()
+#         self.n_agents = 1
+#         self.state_size = len(states[0])
+#         return self.env

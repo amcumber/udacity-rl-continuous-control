@@ -53,3 +53,6 @@ class OUNoise(Noise):
         )
         self.state = x + dx
         return self.state
+
+    def __call__(self):
+        return self.sample()
