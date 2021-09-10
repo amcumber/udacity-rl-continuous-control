@@ -77,7 +77,7 @@ class MultiAgentTrainer(Trainer):
         self.solved = solved
         self.window_len = window_len
 
-        self.all_scores_ = None
+        self.scores_ = None
         self.n_workers = n_workers
         self.max_samples = max_samples
         self.root = save_root
@@ -110,7 +110,7 @@ class MultiAgentTrainer(Trainer):
             (all_scores, scores_window) = self._run_episode(
                 all_scores, scores_window, self.max_t
             )
-            self.all_scores_ = all_scores
+            self.scores_ = all_scores
             self._report_score(i_episode, scores_window)
             if (i_episode + 1) % self.window_len == 0:
                 self._report_score(i_episode, scores_window, end="\n")
@@ -166,8 +166,8 @@ class MultiAgentTrainer(Trainer):
             (all_scores, scores_window) = self._run_episode(
                 all_scores, scores_window, t_max
             )
-            self.all_scores_ = all_scores
-            print(f"\rEpisode {i+1}\tFinal Score {np.mean(all_scores):.2f}", end="")
+            self.scores_ = all_scores
+            print(f"\rEpisode {i+1}\tFinal Score: {np.mean(all_scores):.2f}", end="")
         return all_scores
 
 
