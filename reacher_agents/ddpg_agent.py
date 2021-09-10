@@ -28,17 +28,16 @@ class DDPGAgent(Agent):
         self,
         state_size: int,
         action_size: int,
+        buffer_size: int,
+        batch_size: int,
+        gamma: float,
+        tau: float,
+        lr_actor: float,
+        lr_critic: float,
+        learn_f: int,
+        weight_decay: float,
         device: str = "cpu",
         random_seed: int = 42,
-        buffer_size: int = int(1e6),
-        batch_size: int = 128,
-        gamma: float = 0.99,
-        tau: float = 0.05,# 1e-3,
-        lr_actor: float = 0.001,
-        lr_critic: float = 0.002,
-        target_update_f: int = 10,
-        learn_f: int = 10,
-        weight_decay: float = 0,  # 0.0001,
         actor: nn.Module = DDPGActor,
         critic: nn.Module = DDPGCritic,
         noise: Noise = OUNoise,
@@ -93,7 +92,6 @@ class DDPGAgent(Agent):
         self.lr_actor = lr_actor
         self.lr_critic = lr_critic
 
-        self.target_f = target_update_f
         self.learn_f = learn_f
 
         self.weight_decay = weight_decay
@@ -118,7 +116,10 @@ class DDPGAgent(Agent):
             random_seed,
             upper_bound,
         ).to(device)
-        self.actor_optimizer = optim.Adam(self.actor_local.parameters(), lr=lr_actor)
+        self.actor_optimizer = optim.Adam(
+            self.actor_local.parameters(),
+            lr=lr_actor,
+        )
 
         # Critic Network (w/ Target Network)
         self.critic_local = critic(
@@ -228,9 +229,8 @@ class DDPGAgent(Agent):
         self.actor_optimizer.step()
 
         # ------------------- update target networks --------------------- #
-        if self.i_step % self.target_f == 0:
-            self._soft_update(self.critic_local, self.critic_target)
-            self._soft_update(self.actor_local, self.actor_target)
+        self._soft_update(self.critic_local, self.critic_target)
+        self._soft_update(self.actor_local, self.actor_target)
 
     def _soft_update(self, local_model, target_model):
         """Soft update model parameters.
