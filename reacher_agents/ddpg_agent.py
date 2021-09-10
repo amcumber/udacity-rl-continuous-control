@@ -108,13 +108,13 @@ class DDPGAgent(Agent):
             state_size,
             action_size,
             random_seed,
-            upper_bound,
+            upper_bound=upper_bound,
         ).to(device)
         self.actor_target = actor(
             state_size,
             action_size,
             random_seed,
-            upper_bound,
+            upper_bound=upper_bound,
         ).to(device)
         self.actor_optimizer = optim.Adam(
             self.actor_local.parameters(),

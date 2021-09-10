@@ -11,3 +11,4 @@ TAU = 1e-3              # soft update target parameter
 LR_ACTOR = 1e-4         # learning rate for the actor
 LR_CRITIC = 1e-3        # learning rate for the critic
 WEIGHT_DECAY = 0.0      # L2 weight decay parameter
+WINDOW_LEN = 100        # window length for averaging

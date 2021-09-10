@@ -20,7 +20,7 @@ class DDPGActor(nn.Module):
         self,
         state_size: int,
         action_size: int,
-        seed: int,
+        seed: int = 42,
         hidden_units: Tuple[int] = (256, 128, 64),
         upper_bound: float = 1,
         act_func: callable = F.relu,
@@ -125,4 +125,4 @@ class DDPGCritic(nn.Module):
         x = torch.cat((xs, action), dim=1)
         x = self.act_func(self.fc2(x))
         x = self.act_func(self.fc3(x))
-        return self.fc3(x)
+        return self.fc4(x)

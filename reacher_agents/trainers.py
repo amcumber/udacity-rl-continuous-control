@@ -28,12 +28,12 @@ class MultiAgentTrainer(Trainer):
         self,
         agent: Agent,
         env: EnvironmentMgr,
-        n_episodes: int = 3000,
-        max_t: int = 500,
-        window_len: int = 100,
-        solved: float = 30.0,
-        n_workers: int = 1,
-        max_samples: int = 10,
+        n_episodes: int,
+        max_t: int,
+        window_len: int,
+        solved: float,
+        n_workers: int,
+        max_samples: int,
         save_root: str = "checkpoint",
     ):
         """
