@@ -171,14 +171,12 @@ class DDPGAgent(Agent):
         Save experience in replay memory, and use random sample from buffer to
         learn.
         """
+        self.i_step += 1
         # Save experience / reward
         self.memory.add(state, action, reward, next_state, done)
 
         # Learn, if enough samples are available in memory
-        memory_filled = len(self.memory) > self.batch_size
-        self.i_step += 1
-        allowed_to_learn = self.i_step % self.learn_f == 0
-        if memory_filled and allowed_to_learn:
+        if (len(self.memory) > self.batch_size):
             experiences = self.memory.sample()
             self.learn(experiences)
 
@@ -229,8 +227,9 @@ class DDPGAgent(Agent):
         self.actor_optimizer.step()
 
         # ------------------- update target networks --------------------- #
-        self._soft_update(self.critic_local, self.critic_target)
-        self._soft_update(self.actor_local, self.actor_target)
+        if (self.i_step % self.learn_f == 0):
+            self._soft_update(self.critic_local, self.critic_target)
+            self._soft_update(self.actor_local, self.actor_target)
 
     def _soft_update(self, local_model, target_model):
         """Soft update model parameters.

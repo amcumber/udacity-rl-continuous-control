@@ -33,7 +33,7 @@ class MultiAgentTrainer(Trainer):
         window_len: int,
         solved: float,
         n_workers: int,
-        max_samples: int,
+        max_workers: int,
         save_root: str = "checkpoint",
     ):
         """
@@ -79,13 +79,33 @@ class MultiAgentTrainer(Trainer):
 
         self.scores_ = None
         self.n_workers = n_workers
-        self.max_samples = max_samples
+        self.max_workers = max_workers
         self.root = save_root
 
-    def _report_score(self, i_episode, scores_window, end="") -> None:
+    def _report_score(
+        self,
+        i_episode,
+        scores_window,
+        end="",
+        # n=10,
+    ) -> None:
+        """
+        Report the score
+        Parameters
+        ----------
+        i_episode  : int
+            current episode number
+        scores_window : deque
+            latest scores
+        end : str
+            how to end the print function ('' will repeat the line)
+        n : int
+            report last the mean of the last n scores for 'latest score'
+        """
         print(
             f"\rEpisode {i_episode+1:d}"
             f"\tAverage Score: {np.mean(scores_window):.2f}",
+            # f"\t Latest Score: {np.mean(scores_window[-10:]):.2f}",
             end=end,
         )
 
@@ -150,7 +170,7 @@ class MultiAgentTrainer(Trainer):
                   project as well as reviewing recommendations on the Mentor
                   help forums - Udacity's Deep Reinforement Learning Course
         """
-        samples = np.min([self.max_samples, self.n_workers])
+        samples = np.min([self.max_workers, self.n_workers])
         for idx in random.sample(range(self.n_workers), samples):
             self.agent.step(
                 states[idx],
@@ -184,7 +204,7 @@ class SingleAgentTrainer(MultiAgentTrainer):
         solved: float = 30.0,
         max_samples: int = 10,
         save_root: str = "checkpoint",
-        n_workers: int = None
+        n_workers: int = None,
     ):
         super().__init__(
             agent=agent,
@@ -193,10 +213,11 @@ class SingleAgentTrainer(MultiAgentTrainer):
             max_t=max_t,
             window_len=window_len,
             solved=solved,
-            max_samples=None,
+            max_workers=None,
             save_root=save_root,
-            n_workers=1
+            n_workers=1,
         )
+
     def _step_agents(self, states, actions, rewards, next_states, dones):
         """
         Step Agents depending on number of workers
