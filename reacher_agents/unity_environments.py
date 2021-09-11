@@ -98,6 +98,9 @@ class UnityEnvMgr(EnvironmentMgr):
         msg = "Must Reset Kernel - due to bug in UnityAgents"
         raise EnvironmentResetError(msg)
 
+    def render(self):
+        self.env.render()
+
 
 # class UnityEnvSingleAgentMgr(UnityEnvMgr):
 #     """Unity Manager for a single agent."""

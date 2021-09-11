@@ -46,6 +46,9 @@ class GymEnvironmentMgr(EnvironmentMgr):
             return gym.make(scenario)
         self.state = EnvEnum.active
         return self.env
+
+    def render(self):
+        self.env.render()
     
 
 class GymContinuousEnvMgr(GymEnvironmentMgr):

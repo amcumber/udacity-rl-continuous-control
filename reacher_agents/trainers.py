@@ -121,13 +121,15 @@ class MultiAgentTrainer(Trainer):
         return all_scores
 
     def _run_episode(
-        self, all_scores, scores_window, max_t
+        self, all_scores, scores_window, max_t, render=False
     ) -> Tuple[list, deque, float]:
         """Run an episode of the training sequence"""
         states = self.env.reset()
         self.agent.reset()
         new_scores = np.zeros(self.n_workers)
         for _ in range(max_t):
+            if render:
+                self.env.render()
             actions = self.agent.act(states)
             next_states, rewards, dones, _ = self.env.step(actions)
             self._step_agents(states, actions, rewards, next_states, dones)
@@ -158,13 +160,13 @@ class MultiAgentTrainer(Trainer):
                 dones[idx],
             )
 
-    def eval(self, n_episodes=3, t_max=1000):
+    def eval(self, n_episodes=3, t_max=1000, render=False):
         ## scores_window
         all_scores = []
         scores_window = deque(maxlen=self.window_len)
         for i in range(n_episodes):
             (all_scores, scores_window) = self._run_episode(
-                all_scores, scores_window, t_max
+                all_scores, scores_window, t_max, render=render
             )
             self.scores_ = all_scores
             print(f"\rEpisode {i+1}\tFinal Score: {np.mean(all_scores):.2f}", end="")
