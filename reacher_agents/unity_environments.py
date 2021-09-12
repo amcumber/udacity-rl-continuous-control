@@ -7,7 +7,6 @@ from .environments import (
     EnvEnum,
     EnvironmentMgr,
     EnvironmentNotLoadedError,
-    EnvironmentResetError,
 )
 
 
@@ -17,7 +16,7 @@ def validate_unity_env(func):
     def wrapper(cls, *args, **kwargs):
         if cls.state == EnvEnum.dead:
             msg = "Must Reset Kernel - due to bug in UnityAgents"
-            raise EnvironmentResetError(msg)
+            print(msg)
         return func(cls, *args, **kwargs)
 
     return wrapper
@@ -70,9 +69,6 @@ class UnityEnvMgr(EnvironmentMgr):
     @validate_unity_env
     def start(self) -> UnityEnvironment:
         """Start the environment with the given train_mode."""
-        if self.state == EnvEnum.active:
-            return self.env
-
         self.env = self.get_env(self.file)
         time.sleep(2)
         self.brain_name = self.env.brain_names[0]
@@ -96,7 +92,7 @@ class UnityEnvMgr(EnvironmentMgr):
         """Close the environment"""
         self.env.close()
         msg = "Must Reset Kernel - due to bug in UnityAgents"
-        raise EnvironmentResetError(msg)
+        print(msg)
 
     def render(self):
         self.env.render()

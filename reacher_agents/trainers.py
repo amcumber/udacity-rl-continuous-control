@@ -82,6 +82,8 @@ class MultiAgentTrainer(Trainer):
         self.max_workers = max_workers
         self.root = save_root
 
+        self.SAVE_EVERY = 10
+
     def _report_score(
         self,
         i_episode,
@@ -132,7 +134,7 @@ class MultiAgentTrainer(Trainer):
             )
             self.scores_ = all_scores
             self._report_score(i_episode, scores_window)
-            if (i_episode + 1) % self.window_len == 0:
+            if (i_episode + 1) % self.SAVE_EVERY == 0:
                 self._report_score(i_episode, scores_window, end="\n")
                 self.agent.save(f"{self.root}-checkpoint")
             if self._check_solved(i_episode, scores_window):
