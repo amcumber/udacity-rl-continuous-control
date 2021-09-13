@@ -1,13 +1,14 @@
+from os import stat
 import random
 from abc import ABC, abstractmethod
-from collections import deque, namedtuple
+from collections import deque
 from datetime import datetime
-from typing import Tuple
+from pathlib import Path
+from typing import Tuple, Type
 
 import numpy as np
-import torch
-import torch.nn.functional as F
-import torch.optim as optim
+import toml
+import pickle
 
 from .agents import Agent
 from .environments import EnvironmentMgr
@@ -62,8 +63,9 @@ class MultiAgentTrainer(Trainer):
             number of workers (1, 20)
         max_sample: int (10)
             max number of workers to sample for multi agent training
-        save_file: str
+        save_root: str
             file to save network weights
+
         CITATION: the alogrithm for implemeting the learn_every // update_every
                   was derived from recommendations for the continuous control
                   project as well as reviewing recommendations on the Mentor
@@ -124,7 +126,13 @@ class MultiAgentTrainer(Trainer):
         now = datetime.now()
         return f'{root}-{now.strftime("%Y%m%dT%H%M%S")}'
 
-    def train(self):
+    def train(self, save_all=False):
+        if save_all:
+            save_root = self._get_save_file(self.root)
+            trainer_file = f'trainer-{save_root}.toml'
+            agent_file = f'agent-{save_root}.toml'
+            self.save_hyperparameters(trainer_file)
+            self.agent.save_hyperparameters(agent_file)
         self.env.start()
         all_scores = []  # list containing scores from each episode
         scores_window = deque(maxlen=self.window_len)
@@ -136,7 +144,8 @@ class MultiAgentTrainer(Trainer):
             self._report_score(i_episode, scores_window)
             if (i_episode + 1) % self.SAVE_EVERY == 0:
                 self._report_score(i_episode, scores_window, end="\n")
-                self.agent.save(f"{self.root}-checkpoint")
+                self.agent.save(f"{self.root}-agent-checkpoint")
+                self.save_scores(f'{self.root}-scores-checkpoint.pkl')
             if self._check_solved(i_episode, scores_window):
                 self.agent.save(self._get_save_file(f"{self.root}-solved"))
                 break
@@ -194,6 +203,38 @@ class MultiAgentTrainer(Trainer):
             print(f"\rEpisode {i+1}\tFinal Score: {np.mean(all_scores):.2f}", end="")
         return all_scores
 
+    def save_hyperparameters(self, file: str) -> None:
+        """
+        Save trainer meta data into a toml file
+        """
+        if file is None:
+            raise ValueError("File must be specified")
+        data = {
+            "n_episodes": self.n_episodes,
+            "max_t": self.max_t,
+            "window_len": self.window_len,
+            "solved": self.solved,
+            "n_workers": self.n_workers,
+            "max_workers": self.max_workers,
+            "save_root": self.save_root,
+        }
+        with Path(file).open("w") as fh:
+            toml.dump(data, fh)
+
+    def save_scores(self, file: str) -> None:
+        scores = self.scores_
+        with Path(file).open("wb") as fh:
+            pickle.dump(scores, fh, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def read_scores(self, file: str) -> list:
+        """Read Scores from pickle file
+        
+        NOTE: DO NOT LOAD pickle files generated from a source you do not trust!
+        """
+        with Path(file).open("rb") as fh:
+            scores = pickle.load(fh)
+        return scores
+
 
 class SingleAgentTrainer(MultiAgentTrainer):
     def __init__(
@@ -204,10 +245,15 @@ class SingleAgentTrainer(MultiAgentTrainer):
         max_t: int = 500,
         window_len: int = 100,
         solved: float = 30.0,
-        max_samples: int = 10,
+        max_workers: int = None,
         save_root: str = "checkpoint",
         n_workers: int = None,
     ):
+        """
+        Initialize a single agent trainer. for use with OpenAI Gym.
+        Maintains the same API as MultiAgentTrainer but n_workers and and
+        max_workers are ignored
+        """
         super().__init__(
             agent=agent,
             env=env,

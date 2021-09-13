@@ -7,9 +7,11 @@
 #            Learning Course
 import copy
 import random
+from pathlib import Path
 from typing import Tuple
 
 import numpy as np
+import toml
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -17,8 +19,8 @@ import torch.optim as optim
 
 from .agents import Agent, MultiAgent
 from .ddpg_model import DDPGActor, DDPGCritic
-from .replay_buffers import ReplayBuffer
 from .noise_model import Noise, OUNoise
+from .replay_buffers import ReplayBuffer
 
 
 class DDPGAgent(Agent):
@@ -270,3 +272,24 @@ class DDPGAgent(Agent):
 
         self.critic_local.load_state_dict(torch.load(critic_file))
         self.critic_target.load_state_dict(torch.load(critic_file))
+
+    def save_hyperparameters(self, file: str) -> None:
+        if file is None:
+            raise ValueError("File must be specified")
+        data = {
+            'state_size': self.state_size,
+            'action_size': self.action_size,
+            'buffer_size': self.buffer_size,
+            'batch_size': self.batch_size,
+            'gamma': self.gamma,
+            'tau': self.tau,
+            'lr_actor': self.lr_actor,
+            'lr_critic': self.lr_critic,
+            'learn_f': self.learn_f,
+            'weight_decay': self.weight_decay,
+            'device': self.device,
+            'random_seed': self.random_seed,
+            'upper_bound': self.upper_bound,
+        }
+        with Path(file).open("w") as fh:
+            toml.dump(data, fh)
