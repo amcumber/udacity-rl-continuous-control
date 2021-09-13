@@ -82,7 +82,7 @@ class MultiAgentTrainer(Trainer):
         self.scores_ = None
         self.n_workers = n_workers
         self.max_workers = max_workers
-        self.root = save_root
+        self.save_root = save_root
 
         self.SAVE_EVERY = 10
 
@@ -128,7 +128,7 @@ class MultiAgentTrainer(Trainer):
 
     def train(self, save_all=False):
         if save_all:
-            save_root = self._get_save_file(self.root)
+            save_root = self._get_save_file(self.save_root)
             trainer_file = f'trainer-{save_root}.toml'
             agent_file = f'agent-{save_root}.toml'
             self.save_hyperparameters(trainer_file)
@@ -144,10 +144,10 @@ class MultiAgentTrainer(Trainer):
             self._report_score(i_episode, scores_window)
             if (i_episode + 1) % self.SAVE_EVERY == 0:
                 self._report_score(i_episode, scores_window, end="\n")
-                self.agent.save(f"{self.root}-agent-checkpoint")
-                self.save_scores(f'{self.root}-scores-checkpoint.pkl')
+                self.agent.save(f"{self.save_root}-agent-checkpoint")
+                self.save_scores(f'{self.save_root}-scores-checkpoint.pkl')
             if self._check_solved(i_episode, scores_window):
-                self.agent.save(self._get_save_file(f"{self.root}-solved"))
+                self.agent.save(self._get_save_file(f"{self.save_root}-solved"))
                 break
         return all_scores
 

@@ -6,10 +6,6 @@
 
 # Project 2: Continuous Control
 
-Author: Aaron McUmber
-
-Date: 2021-09-12
-
 ### Introduction
 
 For this project, you will work with the [Reacher](https://github.com/Unity-Technologies/ml-agents/blob/master/docs/Learning-Environment-Examples.md#reacher) environment.

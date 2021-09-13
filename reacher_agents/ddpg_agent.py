@@ -149,6 +149,7 @@ class DDPGAgent(Agent):
             buffer_size,
             batch_size,
             random_seed,
+            device=device,
         )
 
         # init Step Counter

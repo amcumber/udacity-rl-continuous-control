@@ -152,6 +152,7 @@ dogImages/
 *.pt
 *.pth
 *.p
+*.pkl
 
 # Archives
 *.gz

@@ -37,10 +37,10 @@ def run_init():
         root = Path(__file__)
         if N_WORKERS == 1:
             envh_param = root / "envs/Reacher_Windows_x86_64-one-agent/Reacher.exe"
-            root_name = "multi"
+            root_name = "single"
         else:
             envh_param = root / "envs/Reacher_Windows_x86_64-twenty-agents/Reacher.exe"
-            root_name = "single"
+            root_name = "multi"
 
         if not envh_param.exists():
             raise FileNotFoundError(

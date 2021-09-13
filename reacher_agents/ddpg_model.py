@@ -119,8 +119,8 @@ class DDPGCritic(nn.Module):
         Build a critic (value) network that maps (state, action)
         pairs -> Q-values.
         """
-        state = state.type(torch.FloatTensor)
-        action = action.type(torch.FloatTensor)
+        # state = state.type(torch.FloatTensor)
+        # action = action.type(torch.FloatTensor)
         xs = self.act_func(self.fc1(state))
         x = torch.cat((xs, action), dim=1)
         x = self.act_func(self.fc2(x))
