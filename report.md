@@ -309,7 +309,24 @@ a uniform distribution between $\mp3e-3$ was established.
 
 
 ```python
-%config Completer.use_jedi = False
+import torch
+```
+
+
+```python
+torch.cuda.is_available()
+```
+
+
+
+
+    True
+
+
+
+
+```python
+# %config Completer.use_jedi = False
 
 import numpy as np
 import random
@@ -423,57 +440,8 @@ Record
 
 
 ```python
-env = envh.start()
-state_size = envh.state_size
-action_size = envh.action_size
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-# device = torch.device("cpu")
-agent = DDPGAgent(
-    state_size=state_size,
-    action_size=action_size,
-    buffer_size=BUFFER_SIZE,
-    batch_size=BATCH_SIZE,
-    gamma=GAMMA,
-    tau=TAU,
-    lr_actor=LR_ACTOR,
-    lr_critic=LR_CRITIC,
-    learn_f=LEARN_F,
-    weight_decay=WEIGHT_DECAY,
-    device=device,
-    random_seed=42,
-    upper_bound=upper_bound,
-)
-trainer = Trainer(
-    agent=agent,
-    env=envh,
-    n_episodes=N_EPISODES,
-    max_t=MAX_T,
-    window_len=WINDOW_LEN,
-    solved=solved,
-    n_workers=N_WORKERS,
-    max_workers=MAX_WORKERS,  # note can be lower than n
-    save_root=root_name,
-)
+envh, agent, trainer = main()
 ```
-
-    INFO:unityagents:
-    'Academy' started successfully!
-    Unity Academy name: Academy
-            Number of Brains: 1
-            Number of External Brains : 1
-            Lesson number : 0
-            Reset Parameters :
-    		goal_speed -> 1.0
-    		goal_size -> 5.0
-    Unity brain name: ReacherBrain
-            Number of Visual Observations (per agent): 0
-            Vector Observation space type: continuous
-            Vector Observation space size (per agent): 33
-            Number of stacked Vector Observation: 1
-            Vector Action space type: continuous
-            Vector Action space size (per agent): 4
-            Vector Action descriptions: , , , 
-    
 
 
 ```python
@@ -800,42 +768,177 @@ envh, agent, trainer = main()
 
 
 ```python
-scores = trainer.train()
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device
 ```
 
-    Episode 10	Average Score: 0.67
-    Episode 20	Average Score: 0.57
-    Episode 30	Average Score: 0.83
-    Episode 40	Average Score: 1.26
-    Episode 50	Average Score: 1.55
-    Episode 60	Average Score: 1.73
-    Episode 70	Average Score: 1.86
-    Episode 80	Average Score: 1.96
-    Episode 90	Average Score: 2.10
-    Episode 100	Average Score: 2.29
-    Episode 110	Average Score: 2.63
-    Episode 120	Average Score: 2.99
-    Episode 130	Average Score: 3.31
-    Episode 140	Average Score: 3.46
-    Episode 150	Average Score: 3.52
-    Episode 160	Average Score: 3.64
-    Episode 170	Average Score: 3.71
-    Episode 180	Average Score: 3.74
-    Episode 190	Average Score: 3.71
-    Episode 200	Average Score: 3.72
-    Episode 210	Average Score: 3.78
-    Episode 220	Average Score: 3.81
-    Episode 230	Average Score: 3.80
-    Episode 240	Average Score: 3.87
-    Episode 250	Average Score: 4.07
-    Episode 260	Average Score: 4.21
-    Episode 268	Average Score: 4.33
+
+
+
+    device(type='cuda', index=0)
+
+
 
 
 ```python
-import pickle
-from collections import named_tuple
+torch.cuda.is_available()
 ```
+
+
+
+
+    True
+
+
+
+
+```python
+trainer.agent.device
+```
+
+
+
+
+    device(type='cuda', index=0)
+
+
+
+
+```python
+# trainer.agent.load('checkpoints/single-checkpoint_actor-4.8.pth', 'checkpoints/single-checkpoint_critic-4.8.pth')
+```
+
+
+```python
+trainer.agent.load(
+    'checkpoints/single-agent-checkpoint_actor-6.8.pth',
+    'checkpoints/single-agent-checkpoint_critic-6.8.pth'
+)
+```
+
+
+```python
+scores = trainer.train()
+```
+
+    Episode 10	Average Score: 13.70
+    Episode 20	Average Score: 15.86
+    Episode 30	Average Score: 18.44
+    Episode 40	Average Score: 20.37
+    Episode 50	Average Score: 21.03
+    Episode 60	Average Score: 21.69
+    Episode 70	Average Score: 22.53
+    Episode 80	Average Score: 23.20
+    Episode 90	Average Score: 23.59
+    Episode 100	Average Score: 24.05
+    Episode 110	Average Score: 25.34
+    Episode 120	Average Score: 26.11
+    Episode 130	Average Score: 26.51
+    Episode 140	Average Score: 26.65
+    Episode 150	Average Score: 26.88
+    Episode 160	Average Score: 27.04
+    Episode 170	Average Score: 26.88
+    Episode 180	Average Score: 26.71
+    Episode 190	Average Score: 26.62
+    Episode 200	Average Score: 26.41
+    Episode 210	Average Score: 26.29
+    Episode 220	Average Score: 26.41
+    Episode 230	Average Score: 26.33
+    Episode 240	Average Score: 26.34
+    Episode 250	Average Score: 26.41
+    Episode 260	Average Score: 26.41
+    Episode 270	Average Score: 26.48
+    Episode 280	Average Score: 26.60
+    Episode 290	Average Score: 26.69
+    Episode 300	Average Score: 26.81
+    Episode 310	Average Score: 27.00
+    Episode 320	Average Score: 27.12
+    Episode 330	Average Score: 27.32
+    Episode 340	Average Score: 27.39
+    Episode 350	Average Score: 27.46
+    Episode 360	Average Score: 27.50
+    Episode 370	Average Score: 27.62
+    Episode 380	Average Score: 27.70
+    Episode 390	Average Score: 27.81
+    Episode 400	Average Score: 27.80
+    Episode 410	Average Score: 27.70
+    Episode 420	Average Score: 27.60
+    Episode 430	Average Score: 27.28
+    Episode 440	Average Score: 27.18
+    Episode 450	Average Score: 26.94
+    Episode 460	Average Score: 26.63
+    Episode 470	Average Score: 26.24
+    Episode 480	Average Score: 25.90
+    Episode 490	Average Score: 25.50
+    Episode 494	Average Score: 25.41
+
+
+    ---------------------------------------------------------------------------
+
+    KeyboardInterrupt                         Traceback (most recent call last)
+
+    <ipython-input-10-cd54791c62a1> in <module>
+    ----> 1 scores = trainer.train()
+    
+
+    D:\udacity\deep-rl\projects\p2_reacher\cont-control\reacher_agents\trainers.py in train(self, save_all)
+        139         for i_episode in range(self.n_episodes):
+        140             (all_scores, scores_window) = self._run_episode(
+    --> 141                 all_scores, scores_window, self.max_t
+        142             )
+        143             self.scores_ = all_scores
+    
+
+    D:\udacity\deep-rl\projects\p2_reacher\cont-control\reacher_agents\trainers.py in _run_episode(self, all_scores, scores_window, max_t, render)
+        164             actions = self.agent.act(states)
+        165             next_states, rewards, dones, _ = self.env.step(actions)
+    --> 166             self._step_agents(states, actions, rewards, next_states, dones)
+        167             states = next_states
+        168             new_scores += rewards
+    
+
+    D:\udacity\deep-rl\projects\p2_reacher\cont-control\reacher_agents\trainers.py in _step_agents(self, states, actions, rewards, next_states, dones)
+        189                 rewards[idx],
+        190                 next_states[idx],
+    --> 191                 dones[idx],
+        192             )
+        193 
+    
+
+    D:\udacity\deep-rl\projects\p2_reacher\cont-control\reacher_agents\ddpg_agent.py in step(self, state, action, reward, next_state, done)
+        181         # Learn, if enough samples are available in memory
+        182         if (len(self.memory) > self.batch_size):
+    --> 183             experiences = self.memory.sample()
+        184             self.learn(experiences)
+        185 
+    
+
+    D:\udacity\deep-rl\projects\p2_reacher\cont-control\reacher_agents\replay_buffers.py in sample(self)
+         79         states = (
+         80             torch.from_numpy(
+    ---> 81                 np.vstack([e.state for e in experiences if e is not None])
+         82             )
+         83             .float()
+    
+
+    <__array_function__ internals> in vstack(*args, **kwargs)
+    
+
+    D:\ProgramData\miniconda3\envs\drlnd\lib\site-packages\numpy\core\shape_base.py in vstack(tup)
+        281     if not isinstance(arrs, list):
+        282         arrs = [arrs]
+    --> 283     return _nx.concatenate(arrs, 0)
+        284 
+        285 
+    
+
+    <__array_function__ internals> in concatenate(*args, **kwargs)
+    
+
+    KeyboardInterrupt: 
+
+
+Halted early since to evaluate if the model is deteriorating.
 
 ### 4.1.6 Visualize
 
@@ -852,16 +955,35 @@ Visualize the scores of your trained agent.
 
 
 ```python
-def plot_scores(trainer, i_map=0):
+scores = trainer.read_scores('checkpoints/scores to checkpoint-6.8.pkl')
+# scores = trainer.read_scores('checkpoints/single-scores-checkpoint-270run.pkl')
+scores.extend(trainer.scores_)
+# trainer.scores_ = scores68
+# trainer.n_workers = 20
+```
+
+
+```python
+trainer.scores_ = scores
+```
+
+
+```python
+trainer.save_scores('checkpoint-overtrained-fc4-25.4.pkl')
+```
+
+
+```python
+def plot_scores(scores, i_map=0, n_workers=N_WORKERS):
     sns.set_style('darkgrid')
     sns.set_context('talk')
     sns.set_palette('Paired')
     cmap = sns.color_palette('Paired')
-    if trainer.n_workers > 1:
-        scores = np.mean(np.array(trainer.scores_).squeeze(), 1)
+    if N_WORKERS > 1:
+        scores = np.mean(np.array(scores).squeeze(), 1)
     else:
         scores = np.array(trainer.scores_).squeeze()
-    alr, clr, lf = trainer.agent.lr_actor, trainer.agent.lr_critic, trainer.agent.learn_f
+    alr, clr, lf = LR_ACTOR, LR_CRITIC, LEARN_F
     score_df = pd.DataFrame({'scores': scores})
     score_df = score_df.assign(mean=lambda df: df.rolling(10).mean()['scores'])
 
@@ -872,7 +994,7 @@ def plot_scores(trainer, i_map=0):
     ax.set_xlabel('Episode #')
     ax.set_ylabel('Score')
     plt.show()
-plot_scores(trainer)
+plot_scores(scores)
 ```
 
 
@@ -886,10 +1008,10 @@ plot_scores(trainer)
 
 ```python
 agent.load(
-    r'D:\udacity\deep-rl\projects/p2_reacher/cont-control/multi-checkpoint_actor-7.5.pth',
-    r'D:\udacity\deep-rl\projects/p2_reacher/cont-control/multi-checkpoint_critic-7.5.pth',
+    r'checkpoints/single-agent-checkpoint_actor-25.4-494.pth',
+    r'checkpoints/single-agent-checkpoint_critic25.4-494.pth'
 )
-etrainer = Trainer(
+etrainer = MultiAgentTrainer(
     agent=agent,
     env=envh,
     n_workers=N_WORKERS,
@@ -906,10 +1028,84 @@ etrainer = Trainer(
 scores = etrainer.eval(n_episodes=100, render=False)
 ```
 
+    Episode 6	Final Score: 23.18
+
+
+    ---------------------------------------------------------------------------
+
+    KeyboardInterrupt                         Traceback (most recent call last)
+
+    <ipython-input-20-f72fe0829e72> in <module>
+    ----> 1 scores = etrainer.eval(n_episodes=100, render=False)
+    
+
+    D:\udacity\deep-rl\projects\p2_reacher\cont-control\reacher_agents\trainers.py in eval(self, n_episodes, t_max, render)
+        198         for i in range(n_episodes):
+        199             (all_scores, scores_window) = self._run_episode(
+    --> 200                 all_scores, scores_window, t_max, render=render
+        201             )
+        202             self.scores_ = all_scores
+    
+
+    D:\udacity\deep-rl\projects\p2_reacher\cont-control\reacher_agents\trainers.py in _run_episode(self, all_scores, scores_window, max_t, render)
+        164             actions = self.agent.act(states)
+        165             next_states, rewards, dones, _ = self.env.step(actions)
+    --> 166             self._step_agents(states, actions, rewards, next_states, dones)
+        167             states = next_states
+        168             new_scores += rewards
+    
+
+    D:\udacity\deep-rl\projects\p2_reacher\cont-control\reacher_agents\trainers.py in _step_agents(self, states, actions, rewards, next_states, dones)
+        189                 rewards[idx],
+        190                 next_states[idx],
+    --> 191                 dones[idx],
+        192             )
+        193 
+    
+
+    D:\udacity\deep-rl\projects\p2_reacher\cont-control\reacher_agents\ddpg_agent.py in step(self, state, action, reward, next_state, done)
+        181         # Learn, if enough samples are available in memory
+        182         if (len(self.memory) > self.batch_size):
+    --> 183             experiences = self.memory.sample()
+        184             self.learn(experiences)
+        185 
+    
+
+    D:\udacity\deep-rl\projects\p2_reacher\cont-control\reacher_agents\replay_buffers.py in sample(self)
+         79         states = (
+         80             torch.from_numpy(
+    ---> 81                 np.vstack([e.state for e in experiences if e is not None])
+         82             )
+         83             .float()
+    
+
+    <__array_function__ internals> in vstack(*args, **kwargs)
+    
+
+    D:\ProgramData\miniconda3\envs\drlnd\lib\site-packages\numpy\core\shape_base.py in vstack(tup)
+        281     if not isinstance(arrs, list):
+        282         arrs = [arrs]
+    --> 283     return _nx.concatenate(arrs, 0)
+        284 
+        285 
+    
+
+    <__array_function__ internals> in concatenate(*args, **kwargs)
+    
+
+    KeyboardInterrupt: 
+
+
 
 ```python
-plot_scores(etrainer, i_map=1)
+plot_scores(etrainer.scores_, i_map=1)
 ```
+
+
+    
+![png](ddpg-eval.png)
+    
+
 
 
 ```python
