@@ -1,0 +1,7 @@
+n_episodes = 1000
+max_t = 1000
+window_len = 100
+solved = 30.0
+n_workers = 20
+max_workers = 10
+save_root = "unity"
