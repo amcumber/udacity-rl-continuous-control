@@ -41,9 +41,12 @@ class DDPGAgent(Agent):
         device: str = "cpu",
         random_seed: int = 42,
         actor: nn.Module = DDPGActor,
+        actor_hidden: Tuple[int] = (256, 128),
         critic: nn.Module = DDPGCritic,
+        critic_hidden: Tuple[int] = (256, 128),
         noise: Noise = OUNoise,
         upper_bound: int = 1,
+        add_noise = True,
     ):
         """Initialize an Agent object.
 
@@ -154,12 +157,15 @@ class DDPGAgent(Agent):
 
         # init Step Counter
         self.i_step = 0
+        self.add_noise = add_noise
 
     def reset(self):
         self.noise.reset()
 
-    def act(self, state, add_noise=True):
+    def act(self, state, add_noise=None):
         """Returns actions for given state as per current policy."""
+        if add_noise is None:
+            add_noise = self.add_noise
         state = torch.from_numpy(state).float().to(self.device)
         self.actor_local.eval()
         with torch.no_grad():

@@ -90,6 +90,7 @@ class MultiAgentTrainer(Trainer):
         self,
         i_episode,
         scores_window,
+        scores,
         end="",
         # n=10,
     ) -> None:
@@ -108,8 +109,9 @@ class MultiAgentTrainer(Trainer):
         """
         print(
             f"\rEpisode {i_episode+1:d}"
-            f"\tAverage Score: {np.mean(scores_window):.2f}",
-            # f"\t Latest Score: {np.mean(scores_window[-10:]):.2f}",
+            f"\tAverage Score (episode): {np.mean(scores):.2f}",
+            f"\\tMax Score (episode): {np.max(scores):.2f}",
+            f"\tAverage Score (deque): {np.mean(scores_window):.2f}",
             end=end,
         )
 
@@ -134,30 +136,30 @@ class MultiAgentTrainer(Trainer):
             self.save_hyperparameters(trainer_file)
             self.agent.save_hyperparameters(agent_file)
         self.env.start()
-        all_scores = []  # list containing scores from each episode
+        scores_episode = []  # list containing scores from each episode
         scores_window = deque(maxlen=self.window_len)
         for i_episode in range(self.n_episodes):
-            (all_scores, scores_window) = self._run_episode(
-                all_scores, scores_window, self.max_t
+            (scores_episode, scores_window, scores) = self._run_episode(
+                scores_episode, scores_window, self.max_t
             )
-            self.scores_ = all_scores
-            self._report_score(i_episode, scores_window)
+            self.scores_ = scores_episode
+            self._report_score(i_episode, scores_window, scores)
             if (i_episode + 1) % self.SAVE_EVERY == 0:
-                self._report_score(i_episode, scores_window, end="\n")
+                self._report_score(i_episode, scores_window, scores, end="\n")
                 self.agent.save(f"{self.save_root}-agent-checkpoint")
                 self.save_scores(f'{self.save_root}-scores-checkpoint.pkl')
             if self._check_solved(i_episode, scores_window):
                 self.agent.save(self._get_save_file(f"{self.save_root}-solved"))
                 break
-        return all_scores
+        return scores_episode
 
     def _run_episode(
-        self, all_scores, scores_window, max_t, render=False
+        self, scores_episode, scores_window, max_t, render=False
     ) -> Tuple[list, deque, float]:
         """Run an episode of the training sequence"""
         states = self.env.reset()
         self.agent.reset()
-        new_scores = np.zeros(self.n_workers)
+        scores = np.zeros(self.n_workers)
         for _ in range(max_t):
             if render:
                 self.env.render()
@@ -165,12 +167,13 @@ class MultiAgentTrainer(Trainer):
             next_states, rewards, dones, _ = self.env.step(actions)
             self._step_agents(states, actions, rewards, next_states, dones)
             states = next_states
-            new_scores += rewards
+            scores += rewards
             if np.any(dones):
                 break
-        scores_window.append(new_scores)  # save most recent score
-        all_scores.append(new_scores)  # save most recent score
-        return (all_scores, scores_window)
+        score = np.mean(scores)
+        scores_window.append(score)  # save most recent score
+        scores_episode.append(score)  # save most recent score
+        return (scores_episode, scores_window, scores)
 
     def _step_agents(self, states, actions, rewards, next_states, dones):
         """
@@ -181,8 +184,8 @@ class MultiAgentTrainer(Trainer):
                   project as well as reviewing recommendations on the Mentor
                   help forums - Udacity's Deep Reinforement Learning Course
         """
-        samples = np.min([self.max_workers, self.n_workers])
-        for idx in random.sample(range(self.n_workers), samples):
+        n = np.min([self.max_workers, self.n_workers])
+        for idx in range(n):
             self.agent.step(
                 states[idx],
                 actions[idx],
@@ -193,15 +196,15 @@ class MultiAgentTrainer(Trainer):
 
     def eval(self, n_episodes=3, t_max=1000, render=False):
         ## scores_window
-        all_scores = []
+        scores_episode = []
         scores_window = deque(maxlen=self.window_len)
         for i in range(n_episodes):
-            (all_scores, scores_window) = self._run_episode(
-                all_scores, scores_window, t_max, render=render
+            (scores_episode, scores_window) = self._run_episode(
+                scores_episode, scores_window, t_max, render=render
             )
-            self.scores_ = all_scores
-            print(f"\rEpisode {i+1}\tFinal Score: {np.mean(all_scores):.2f}", end="")
-        return all_scores
+            self.scores_ = scores_episode
+            print(f"\rEpisode {i+1}\tFinal Score: {np.mean(scores_episode):.2f}", end="")
+        return scores_episode
 
     def save_hyperparameters(self, file: str) -> None:
         """
