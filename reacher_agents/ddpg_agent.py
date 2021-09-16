@@ -113,13 +113,16 @@ class DDPGAgent(Agent):
             state_size,
             action_size,
             random_seed,
+            hidden_units=actor_hidden,
             upper_bound=upper_bound,
         ).to(device)
         self.actor_target = actor(
             state_size,
             action_size,
             random_seed,
+            hidden_units=actor_hidden,
             upper_bound=upper_bound,
+            act_func=F.relu,
         ).to(device)
         self.actor_optimizer = optim.Adam(
             self.actor_local.parameters(),
@@ -131,11 +134,14 @@ class DDPGAgent(Agent):
             state_size,
             action_size,
             random_seed,
+            hidden_units=critic_hidden,
         ).to(device)
         self.critic_target = critic(
             state_size,
             action_size,
             random_seed,
+            hidden_units=critic_hidden,
+            act_func=F.leaky_relu,
         ).to(device)
         self.critic_optimizer = optim.Adam(
             self.critic_local.parameters(),

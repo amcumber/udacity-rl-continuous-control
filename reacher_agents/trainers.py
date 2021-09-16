@@ -12,6 +12,7 @@ import pickle
 
 from .agents import Agent
 from .environments import EnvironmentMgr
+from .workspace_utils import keep_awake
 
 
 class Trainer(ABC):
@@ -110,7 +111,7 @@ class MultiAgentTrainer(Trainer):
         print(
             f"\rEpisode {i_episode+1:d}"
             f"\tAverage Score (episode): {np.mean(scores):.2f}",
-            f"\\tMax Score (episode): {np.max(scores):.2f}",
+            f"\tMax Score (episode): {np.max(scores):.2f}",
             f"\tAverage Score (deque): {np.mean(scores_window):.2f}",
             end=end,
         )
@@ -128,7 +129,7 @@ class MultiAgentTrainer(Trainer):
         now = datetime.now()
         return f'{root}-{now.strftime("%Y%m%dT%H%M%S")}'
 
-    def train(self, save_all=False):
+    def train(self, save_all=False, is_cloud=False):
         if save_all:
             save_root = self._get_save_file(self.save_root)
             trainer_file = f'trainer-{save_root}.toml'
@@ -138,7 +139,10 @@ class MultiAgentTrainer(Trainer):
         self.env.start()
         scores_episode = []  # list containing scores from each episode
         scores_window = deque(maxlen=self.window_len)
-        for i_episode in range(self.n_episodes):
+        rng = range(self.n_episodes)
+        if is_cloud:
+            rng = keep_awake(rng)
+        for i_episode in rng:
             (scores_episode, scores_window, scores) = self._run_episode(
                 scores_episode, scores_window, self.max_t
             )
